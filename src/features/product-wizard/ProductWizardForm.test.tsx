@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   fillBasicInfo,
+  fillPricingAndStock,
   fillShippingDetails,
   goBack,
   goToReview,
@@ -11,11 +12,13 @@ import {
   renderWizard,
 } from "./wizardTestHelpers";
 
-/** Fills Step 1 and adds one valid variation on Step 2, landing on Step 3. */
+/** Fills Step 1, pricing/stock, and one valid variation on Step 2, landing
+ * on Step 3. */
 async function advanceToStep3(): Promise<void> {
   await fillBasicInfo({ title: "Ergonomic Keyboard" });
   await goToStep2();
 
+  fillPricingAndStock();
   fireEvent.click(screen.getByRole("button", { name: /add variation/i }));
   fireEvent.change(screen.getByLabelText(/color/i), { target: { value: "Midnight Blue" } });
   fireEvent.change(screen.getByLabelText(/size/i), { target: { value: "L" } });
@@ -74,7 +77,7 @@ describe("ProductWizardForm navigation", () => {
     // Step 1's fields, the array's `min(1)` rule would block this.
     await goToStep2();
 
-    expect(screen.getByRole("heading", { name: /variations/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /pricing, stock & variations/i })).toBeInTheDocument();
   });
 
   it("allows navigating to Step 2 once Step 1 is valid", async () => {
@@ -82,7 +85,7 @@ describe("ProductWizardForm navigation", () => {
     await fillBasicInfo();
     await goToStep2();
 
-    expect(screen.getByRole("heading", { name: /variations/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /pricing, stock & variations/i })).toBeInTheDocument();
     expect(screen.queryByLabelText(/^title$/i)).not.toBeInTheDocument();
   });
 

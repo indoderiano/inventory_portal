@@ -65,6 +65,8 @@ describe("draft persistence (watch -> Redux -> localStorage)", () => {
         brand: "Acme",
         category: "beauty",
         description: "A reliable wireless mouse with an ergonomic design and long battery life.",
+        basePrice: 29.99,
+        stockQuantity: 50,
         variations: [{ color: "Red", size: "M", sku: "SKU-ABC-1234", extraPrice: 5 }],
         weight: 1.5,
         dimensions: { width: 10, height: 5, depth: 2 },
@@ -80,6 +82,8 @@ describe("draft persistence (watch -> Redux -> localStorage)", () => {
     expect(titleInput.value).toBe("Wireless Mouse");
 
     await goToStep2();
+    expect(screen.getByLabelText(/base price/i)).toHaveValue(29.99);
+    expect(screen.getByLabelText(/stock quantity/i)).toHaveValue(50);
     const colorInput = screen.getByLabelText(/color/i) as HTMLInputElement;
     expect(colorInput.value).toBe("Red");
 

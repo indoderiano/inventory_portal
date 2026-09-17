@@ -6,12 +6,13 @@ import { useFieldArray, useFormContext, useFormState, useWatch } from "react-hoo
 import {
   createEmptyVariation,
   findDuplicateSkuMessage,
+  STEP_TWO_FIELD_NAMES,
   type ProductWizardFormValues,
 } from "./schema";
 import { VariationRow } from "./VariationRow";
 
 export function VariationsStep() {
-  const { control, trigger } = useFormContext<ProductWizardFormValues>();
+  const { control, register, trigger } = useFormContext<ProductWizardFormValues>();
   const { fields, append, remove } = useFieldArray({ control, name: "variations" });
 
   // `useFieldArray`'s `remove` doesn't itself trigger validation, so
@@ -27,16 +28,17 @@ export function VariationsStep() {
     [remove, trigger],
   );
 
-  // Scoped to the array path itself: only re-renders when the min-length
-  // error changes, not when an individual row's field error changes -
-  // those are handled inside each row's own `useFormState`. Errors
-  // attached to the array itself (rather than a specific item) are
-  // exposed by React Hook Form under a dedicated `root` key for field
-  // arrays, not directly on `errors.variations` - see the write-up after
-  // this file for why.
+  // Scoped to Step 2's own fields (the three product-level pricing/stock
+  // fields plus the array path itself): re-renders only when one of
+  // *these* changes, not on unrelated Step 1/3 validation activity, and
+  // not per-row either - individual row errors are handled inside each
+  // row's own `useFormState`. Errors attached to the array itself (rather
+  // than a specific item) are exposed by React Hook Form under a
+  // dedicated `root` key for field arrays, not directly on
+  // `errors.variations` - see the write-up after this file for why.
   const { errors } = useFormState<ProductWizardFormValues>({
     control,
-    name: "variations",
+    name: STEP_TWO_FIELD_NAMES,
   });
   const minLengthError =
     typeof errors.variations?.root?.message === "string"
@@ -65,8 +67,57 @@ export function VariationsStep() {
 
   return (
     <section className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold">Pricing, stock &amp; variations</h2>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <label className="flex flex-col gap-1 text-sm">
+          Base price
+          <input
+            type="number"
+            step="0.01"
+            className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+            {...register("basePrice")}
+          />
+          {errors.basePrice && (
+            <span role="alert" className="text-xs text-red-600">
+              {errors.basePrice.message}
+            </span>
+          )}
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          Stock quantity
+          <input
+            type="number"
+            step="1"
+            className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+            {...register("stockQuantity")}
+          />
+          {errors.stockQuantity && (
+            <span role="alert" className="text-xs text-red-600">
+              {errors.stockQuantity.message}
+            </span>
+          )}
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          Discount percentage
+          <input
+            type="number"
+            step="0.01"
+            className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+            {...register("discountPercentage")}
+          />
+          {errors.discountPercentage && (
+            <span role="alert" className="text-xs text-red-600">
+              {errors.discountPercentage.message}
+            </span>
+          )}
+        </label>
+      </div>
+
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Variations</h2>
+        <h3 className="text-base font-medium">Variations</h3>
         <button
           type="button"
           onClick={() => append(createEmptyVariation())}

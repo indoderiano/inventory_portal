@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   basicInfoSchema,
+  pricingAndStockSchema,
   productWizardSchema,
   shippingSchema,
   variationSchema,
@@ -24,6 +25,15 @@ function makeBasicInfo(overrides: Partial<Record<string, unknown>> = {}) {
     brand: "Acme",
     category: "beauty",
     description: "A reliable wireless mouse with an ergonomic design and long battery life.",
+    ...overrides,
+  };
+}
+
+function makePricingAndStock(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    basePrice: 29.99,
+    stockQuantity: 50,
+    discountPercentage: 10,
     ...overrides,
   };
 }
@@ -190,6 +200,80 @@ describe("basicInfoSchema", () => {
   });
 });
 
+describe("pricingAndStockSchema", () => {
+  it("accepts fully valid pricing and stock data", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock()),
+    ).resolves.toBeTruthy();
+  });
+
+  it("requires a base price", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ basePrice: undefined })),
+    ).rejects.toThrow("Base price is required");
+  });
+
+  it("rejects a base price of 0 or less", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ basePrice: 0 })),
+    ).rejects.toThrow("Base price must be greater than 0");
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ basePrice: -1 })),
+    ).rejects.toThrow("Base price must be greater than 0");
+  });
+
+  it("requires a stock quantity", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ stockQuantity: undefined })),
+    ).rejects.toThrow("Stock quantity is required");
+  });
+
+  it("requires stock quantity to be an integer", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ stockQuantity: 12.5 })),
+    ).rejects.toThrow("Stock quantity must be a whole number");
+  });
+
+  it("rejects a negative stock quantity, but accepts zero", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ stockQuantity: -1 })),
+    ).rejects.toThrow("Stock quantity cannot be negative");
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ stockQuantity: 0 })),
+    ).resolves.toBeTruthy();
+  });
+
+  it("treats discount percentage as optional", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ discountPercentage: undefined })),
+    ).resolves.toBeTruthy();
+  });
+
+  it("accepts a discount percentage of 0", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ discountPercentage: 0 })),
+    ).resolves.toBeTruthy();
+  });
+
+  it("accepts a discount percentage of 99", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ discountPercentage: 99 })),
+    ).resolves.toBeTruthy();
+  });
+
+  it("rejects a discount percentage below 0", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ discountPercentage: -1 })),
+    ).rejects.toThrow("Discount percentage cannot be less than 0");
+  });
+
+  it("rejects a discount percentage above 99", async () => {
+    await expect(
+      pricingAndStockSchema.validate(makePricingAndStock({ discountPercentage: 100 })),
+    ).rejects.toThrow("Discount percentage cannot be more than 99");
+  });
+});
+
 function makeShippingInfo(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     weight: 1.5,
@@ -338,6 +422,7 @@ describe("productWizardSchema", () => {
     await expect(
       productWizardSchema.validate({
         ...makeBasicInfo(),
+        ...makePricingAndStock(),
         variations: [makeVariation()],
         ...makeShippingInfo(),
       }),
@@ -347,6 +432,17 @@ describe("productWizardSchema", () => {
   it("rejects the full wizard shape when Step 1 fields are missing", async () => {
     await expect(
       productWizardSchema.validate({
+        ...makePricingAndStock(),
+        variations: [makeVariation()],
+        ...makeShippingInfo(),
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects the full wizard shape when Step 2 pricing/stock fields are missing", async () => {
+    await expect(
+      productWizardSchema.validate({
+        ...makeBasicInfo(),
         variations: [makeVariation()],
         ...makeShippingInfo(),
       }),
@@ -357,6 +453,7 @@ describe("productWizardSchema", () => {
     await expect(
       productWizardSchema.validate({
         ...makeBasicInfo(),
+        ...makePricingAndStock(),
         variations: [makeVariation()],
       }),
     ).rejects.toThrow();

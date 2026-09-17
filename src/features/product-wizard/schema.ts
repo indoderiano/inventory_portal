@@ -102,23 +102,23 @@ export const variationsSchema = yup
   .required();
 
 /**
- * A positive-number field for a plain (non-`valueAsNumber`) text/number
- * input. The transform maps an empty raw string to `undefined` *before*
- * Yup's own numeric cast runs, so a genuinely blank field fails
- * `.required()` ("Weight is required") rather than `.typeError()`
- * ("Weight must be a number") - those are different situations and
- * deserve different messages. This only works because the corresponding
- * `register()` call does *not* pass `{ valueAsNumber: true }`: that option
- * reads the DOM's `input.valueAsNumber`, which is already `NaN` for an
- * empty field by the time Yup ever sees it, making `.required()"
- * unreachable.
+ * Maps an empty raw string to `undefined` *before* Yup's own numeric cast
+ * runs, so a genuinely blank field fails `.required()` ("X is required")
+ * rather than `.typeError()` ("X must be a number") - those are different
+ * situations and deserve different messages. This only works because the
+ * corresponding `register()` call does *not* pass `{ valueAsNumber: true }`:
+ * that option reads the DOM's `input.valueAsNumber`, which is already
+ * `NaN` for an empty field by the time Yup ever sees it, making
+ * `.required()` unreachable.
  */
+function blankToUndefined(castValue: number, rawValue: unknown): number | undefined {
+  return typeof rawValue === "string" && rawValue.trim() === "" ? undefined : castValue;
+}
+
 const positiveDimension = (label: string) =>
   yup
     .number()
-    .transform((castValue: number, rawValue: unknown) =>
-      typeof rawValue === "string" && rawValue.trim() === "" ? undefined : castValue,
-    )
+    .transform(blankToUndefined)
     .typeError(`${label} must be a number`)
     .required(`${label} is required`)
     .moreThan(0, `${label} must be greater than 0`);
@@ -159,7 +159,40 @@ export const shippingSchema = yup.object({
 
 export type ProductShippingInfo = yup.InferType<typeof shippingSchema>;
 
+/**
+ * Step 2 is "Pricing, Stock & Variations" - the dynamic variations array
+ * plus three product-level fields that apply once, not per-variation.
+ */
+export const pricingAndStockSchema = yup.object({
+  basePrice: yup
+    .number()
+    .transform(blankToUndefined)
+    .typeError("Base price must be a number")
+    .required("Base price is required")
+    .moreThan(0, "Base price must be greater than 0"),
+  stockQuantity: yup
+    .number()
+    .transform(blankToUndefined)
+    .typeError("Stock quantity must be a number")
+    .required("Stock quantity is required")
+    .integer("Stock quantity must be a whole number")
+    .min(0, "Stock quantity cannot be negative"),
+  // Optional: `.notRequired()` (the default for a field with no
+  // `.required()` call) means an empty field simply passes - `blankToUndefined`
+  // still applies so a *filled-in* value is validated as a real number.
+  discountPercentage: yup
+    .number()
+    .transform(blankToUndefined)
+    .typeError("Discount percentage must be a number")
+    .min(0, "Discount percentage cannot be less than 0")
+    .max(99, "Discount percentage cannot be more than 99")
+    .notRequired(),
+});
+
+export type ProductPricingAndStock = yup.InferType<typeof pricingAndStockSchema>;
+
 export const productWizardSchema = basicInfoSchema
+  .concat(pricingAndStockSchema)
   .concat(
     yup.object({
       variations: variationsSchema,
@@ -168,6 +201,20 @@ export const productWizardSchema = basicInfoSchema
   .concat(shippingSchema);
 
 export type ProductWizardFormValues = yup.InferType<typeof productWizardSchema>;
+
+/**
+ * Field names belonging to Step 2 ("Pricing, Stock & Variations"): the
+ * three product-level fields plus the variations array itself (which
+ * covers both the array-level rules - min-length, duplicate-SKU - and,
+ * because Yup always validates the whole array when validating its own
+ * path, every item's own fields too).
+ */
+export const STEP_TWO_FIELD_NAMES = [
+  "basePrice",
+  "stockQuantity",
+  "discountPercentage",
+  "variations",
+] as const satisfies ReadonlyArray<Path<ProductWizardFormValues>>;
 
 /**
  * Field names belonging to Step 3, typed against `ProductWizardFormValues`

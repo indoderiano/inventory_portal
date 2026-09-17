@@ -99,6 +99,9 @@ export function loadPersistedDraft(): ProductWizardDraft {
       brand: toSafeString(parsed.brand),
       category: toSafeString(parsed.category),
       description: toSafeString(parsed.description),
+      basePrice: toSafeNumber(parsed.basePrice),
+      stockQuantity: toSafeNumber(parsed.stockQuantity),
+      discountPercentage: toSafeNumber(parsed.discountPercentage),
       variations: Array.isArray(parsed.variations)
         ? parsed.variations.map(toSafeVariation)
         : [],
@@ -119,6 +122,14 @@ const productWizardDraftSlice = createSlice({
   reducers: {
     draftUpdated(_state, action: PayloadAction<ProductWizardDraft>) {
       return action.payload;
+    },
+    /** Dispatched after a successful product creation. Resets to the same
+     * `EMPTY_DRAFT` reference `initialState` uses, so a fresh page load
+     * afterward has nothing to restore - and `persistProductWizardDraft`'s
+     * reference-equality check picks up the change and overwrites
+     * localStorage with it, same as any other draft update. */
+    draftCleared() {
+      return EMPTY_DRAFT;
     },
   },
 });
