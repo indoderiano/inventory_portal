@@ -1,0 +1,15 @@
+"use client";
+
+import { setupListeners } from "@reduxjs/toolkit/query";
+import { useEffect, useState, type ReactNode } from "react";
+import { Provider } from "react-redux";
+
+import { makeStore } from "@/store/store";
+
+export function Providers({ children }: { children: ReactNode }) {
+  const [store] = useState(() => makeStore());
+
+  useEffect(() => setupListeners(store.dispatch), [store]);
+
+  return <Provider store={store}>{children}</Provider>;
+}
