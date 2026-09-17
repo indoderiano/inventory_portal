@@ -265,7 +265,6 @@ Screenshots will be added in a follow-up pass. Planned:
 - `screenshots/product-wizard.png` — product creation wizard
 - `screenshots/shipping-fragile.png` — shipping step, fragile-handling conditional fields
 - `screenshots/product-review.png` — wizard review step
-- `screenshots/optimistic-error.png` — optimistic mutation failure toast
 
 ## Deployment
 
