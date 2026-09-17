@@ -1,5 +1,14 @@
 # Product & Inventory Management Portal
 
+## Live Demo
+
+**Vercel:** https://inventory-portal-ecru-zeta.vercel.app/
+
+**GitHub:** https://github.com/indoderiano/inventory_portal
+
+
+# Product & Inventory Management Portal
+
 ## Overview
 
 A product inventory management portal built with **Next.js 16 (App Router)**, **React 19**, and **strict TypeScript**, backed by the public [DummyJSON](https://dummyjson.com) API. Client/UI state (filters, wizard drafts, view preferences) is managed with **Redux Toolkit**; all server/cache state is owned by **RTK Query**. Styling is **Tailwind CSS v4** only — no UI component library.
