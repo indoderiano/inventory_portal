@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { HttpResponse, delay, http } from "msw";
 import { act } from "react";
 import { Provider } from "react-redux";
@@ -35,18 +35,6 @@ describe("dummyJsonApi", () => {
 
     expect(result.status).toBe("fulfilled");
     expect(result.data?.id).toBe(1);
-  });
-
-  it("invalidates the product list cache after creating a product", async () => {
-    const store = makeStore();
-
-    await store.dispatch(dummyJsonApi.endpoints.getProducts.initiate());
-    const createResult = await store.dispatch(
-      dummyJsonApi.endpoints.createProduct.initiate({ title: "New Product" }),
-    );
-
-    expect(createResult.error).toBeUndefined();
-    expect(createResult.data?.title).toBe("New Product");
   });
 
   it("prefers full-text search over a category filter when both are given", async () => {
@@ -102,6 +90,85 @@ describe("dummyJsonApi", () => {
     );
 
     expect(getProductsCacheKeys).toHaveLength(1);
+  });
+});
+
+describe("createProduct records into the createdProducts ledger", () => {
+  it("records the returned product on a successful creation", async () => {
+    const store = makeStore();
+
+    const createResult = await store.dispatch(
+      dummyJsonApi.endpoints.createProduct.initiate({ title: "Brand New Gadget" }),
+    );
+    expect(createResult.error).toBeUndefined();
+
+    // `onQueryStarted`'s own completion isn't ordered relative to the
+    // dispatched mutation thunk's promise (RTK Query invokes it as an
+    // unawaited side effect of the `pending` action) - the write it makes
+    // can land on a later microtask than the one `await store.dispatch(...)`
+    // above resumes on, so it's polled for rather than read synchronously.
+    await waitFor(() => {
+      const ledger = dummyJsonApi.endpoints.createdProducts.select()(store.getState()).data;
+      expect(ledger).toHaveLength(1);
+      expect(ledger?.[0]?.title).toBe("Brand New Gadget");
+    });
+  });
+
+  it("does not record anything when the POST fails", async () => {
+    server.use(
+      http.post("https://dummyjson.com/products/add", () =>
+        HttpResponse.json({ message: "Internal Server Error" }, { status: 500 }),
+      ),
+    );
+
+    const store = makeStore();
+    const createResult = await store.dispatch(
+      dummyJsonApi.endpoints.createProduct.initiate({ title: "Should Not Appear" }),
+    );
+    expect(createResult.error).toBeDefined();
+
+    const ledger = dummyJsonApi.endpoints.createdProducts.select()(store.getState()).data;
+    expect(ledger ?? []).toHaveLength(0);
+  });
+
+  it("replaces, rather than duplicates, an earlier entry that shares the same id", async () => {
+    // DummyJSON's mock always returns the same fixed id for every created
+    // product (it doesn't really allocate one) - two creates in the same
+    // session collide on id, and the ledger keeps the newest data for it
+    // rather than showing both or dropping the second.
+    server.use(
+      http.post("https://dummyjson.com/products/add", async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...mockProduct, ...body, id: 101 });
+      }),
+    );
+
+    const store = makeStore();
+    await store.dispatch(dummyJsonApi.endpoints.createProduct.initiate({ title: "First Gadget" }));
+    await waitFor(() => {
+      expect(dummyJsonApi.endpoints.createdProducts.select()(store.getState()).data).toHaveLength(1);
+    });
+
+    await store.dispatch(dummyJsonApi.endpoints.createProduct.initiate({ title: "Second Gadget" }));
+    await waitFor(() => {
+      const ledger = dummyJsonApi.endpoints.createdProducts.select()(store.getState()).data;
+      expect(ledger).toHaveLength(1);
+      expect(ledger?.[0]?.title).toBe("Second Gadget");
+    });
+  });
+
+  it("never issues a network request for the ledger itself", async () => {
+    server.use(
+      http.get("https://dummyjson.com/*", () => {
+        throw new Error("createdProducts must not hit the network");
+      }),
+    );
+
+    const store = makeStore();
+    const result = await store.dispatch(dummyJsonApi.endpoints.createdProducts.initiate());
+
+    expect(result.status).toBe("fulfilled");
+    expect(result.data).toEqual([]);
   });
 });
 
